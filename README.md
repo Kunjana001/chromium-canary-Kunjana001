@@ -21,3 +21,9 @@ The proposed hook is in Blink's FrameConsole::ReportMessageToClient(). It checks
 - AI Tool: Claude Code and ChatGPT
 - Research: Investigating Blink console handling, command-line switch propagation, and network request interception.
 - Status: Both features implemented in candidate_canary.patch (26 added C++ lines across 3 files). Patch application verified against source files from Chromium commit ac92a0298517d7d7e9fe7ab37c8521ff259c87a4 using git apply --check. Compilation and runtime behavior have not yet been verified.
+
+## Loom Demonstration
+
+Video: https://www.loom.com/share/e4520b485ed94a4ab17e3296f6f11b09
+
+The recording documents the implementation and source-level verification. Chromium compilation and runtime behavior remain unverified.
