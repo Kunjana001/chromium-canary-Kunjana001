@@ -1,0 +1,76 @@
+diff --git a/content/browser/network_service_instance_impl.cc b/content/browser/network_service_instance_impl.cc
+--- a/content/browser/network_service_instance_impl.cc
++++ b/content/browser/network_service_instance_impl.cc
+@@ -657,6 +657,13 @@
+                           "restarting service.";
+           ServiceProcessHost::Options options;
+           options.WithDisplayName(u"Network Service");
++          const auto* command_line = base::CommandLine::ForCurrentProcess();
++          const std::string candidate_id =
++              command_line->GetSwitchValueASCII("inject-candidate-id");
++          if (!candidate_id.empty()) {
++            options.WithExtraCommandLineSwitchKeyValues(
++                {{"inject-candidate-id", candidate_id}});
++          }
+           if (g_network_service_crashes_on_next_startup) {
+             g_network_service_crashes_on_next_startup = false;
+             options.WithExtraCommandLineSwitches(
+diff --git a/services/network/url_loader_util.cc b/services/network/url_loader_util.cc
+--- a/services/network/url_loader_util.cc
++++ b/services/network/url_loader_util.cc
+@@ -8,6 +8,7 @@
+ #include <optional>
+ 
+ #include "base/byte_size.h"
++#include "base/command_line.h"
+ #include "base/containers/to_vector.h"
+ #include "base/feature_list.h"
+ #include "base/metrics/histogram_functions.h"
+@@ -22,6 +23,7 @@
+ #include "net/device_bound_sessions/session_usage.h"
+ #include "net/filter/source_stream_type.h"
+ #include "net/http/http_connection_info.h"
++#include "net/http/http_util.h"
+ #include "net/http/http_response_info.h"
+ #include "net/storage_access_api/status.h"
+ #include "net/url_request/url_request.h"
+@@ -581,6 +583,13 @@
+   // This should be ensured by the CorsURLLoaderFactory(), which is called
+   // before URLLoaders are created.
+   DCHECK(AreRequestHeadersSafe(merged_headers));
++  const std::string candidate_id =
++      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
++          "inject-candidate-id");
++  if (request.url.SchemeIsHTTPOrHTTPS() && !candidate_id.empty() &&
++      net::HttpUtil::IsValidHeaderValue(candidate_id)) {
++    merged_headers.SetHeader("X-Candidate-Canary", candidate_id);
++  }
+   url_request.SetExtraRequestHeaders(std::move(merged_headers));
+ 
+   if (request.devtools_accepted_stream_types) {
+diff --git a/third_party/blink/renderer/core/frame/frame_console.cc b/third_party/blink/renderer/core/frame/frame_console.cc
+--- a/third_party/blink/renderer/core/frame/frame_console.cc
++++ b/third_party/blink/renderer/core/frame/frame_console.cc
+@@ -29,6 +29,8 @@
+ #include "third_party/blink/renderer/core/frame/frame_console.h"
+ 
+ #include <memory>
++#include "base/logging.h"
++#include "base/time/time.h"
+ 
+ #include "third_party/blink/public/common/features.h"
+ #include "third_party/blink/public/platform/platform.h"
+@@ -91,6 +93,13 @@
+     if (!location->IsUnknown() && ShouldReportDetailedMessage(level, url)) {
+       stack_trace = location->ToString();
+     }
++  }
++
++  if (source == mojom::blink::ConsoleMessageSource::kConsoleApi &&
++      level == mojom::blink::ConsoleMessageLevel::kWarning &&
++      message == "canary-ping") {
++    LOG(INFO) << "[CANARY_ACK] Verified build for Kunjana001 at "
++              << base::TimeTicks::Now().since_origin().InMicroseconds();
+   }
+ 
+   frame_->GetChromeClient().AddMessageToConsole(
